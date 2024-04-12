@@ -254,24 +254,41 @@ dPIP_reparam <- function(z, n, v, h2 = 0.5, m = 1e6, pi = 0.01) {
   A <- pi / (1 - pi) * sqrt(lambda / C)
   B <- 0.5 * n * (1 - h2) / C
   ncp = n * v / (1 - h2)
-  dchisq(z, 1, ncp)
+  dchisq(z, 1, ncp) * dnorm(sqrt(v), 0, sqrt(h2 / m / pi)) / sqrt(v)
+}
+plot(function(x) sapply(x, function(z) dPIP_reparam(z, n = 3000, v = 1e-4)), xlim = c(0.1,5))
+
+naive_inner <- function(z, n, h2 = 0.5, m = 1e6, pi = 0.01)
+  sapply(z, function(z) 
+    integrate(function(x) dPIP_reparam(z=z, n=n, v = x, m=m, pi=pi), 0, +Inf, abs.tol = 0, subdivisions=1000)$value
+  )
+
+plot(function(x) sapply(x, function(z) naive_inner(z, n = 30000)), xlim = c(0.1,10))
+
+# try integrate naive_inner ?
+naive_outer <- function(n, h2 = 0.5, m = 1e6, pi = 0.01) {
+  integrate(function(x) naive_inner(z=x, n=n, m=m, pi=pi), 0, +Inf, abs.tol = 0)$value
 }
 
 # BayesC power calculation
+# z = u(P)
+# y = ncp
 log_f_reparam <- function(z, y, n = 300, h2 = 0.5, m = 1e6, pi = 0.01)
 {
   ldchi(z, exp(y)) + 
-    lnor(sqrt((1 - h2) / n) * exp(0.5 * y), sqrt(h2 / m / pi)) +
-    0.5 * log((1 - h2)) - 0.5 * log(n) + 0.5 * y
+    lnor((1 - h2) / n * exp(y), sqrt(h2 / m / pi)) +
+    log(1 - h2) - log(n) + y
 } 
 
 fP <- function(z, n, h2 = 0.5, m = 1e6, pi = 0.01) {
+  sapply(z, function(z) {
   integrate(
     function(y) exp(log_f_reparam(z, y = y, n = n, h2 = h2, m = m, pi = pi)),
     -15, 15, abs.tol = 0)$value
+  })
 }
-plot(function(x) sapply(x, function(z) fP(z, n = 300000)), xlim = c(0.000001,0.01))
+plot(function(x) sapply(x, function(z) fP(z, n = 3000)), xlim = c(0.01,10))
 
-pow <- function(n, h2 = 0.5, m = 1e6, pi = 0.01) {
-  integrate(fP, 0, Inf, n = n, h2 = h2, m = m, pi = pi, abs.tol=0)$value
+pow <- function(n = 3000, h2 = 0.5, m = 1e6, pi = 0.01) {
+  integrate(fP, 0.000, Inf, n = n, h2 = h2, m = m, pi = pi, abs.tol=0)$value
 }
