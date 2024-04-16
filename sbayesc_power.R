@@ -91,6 +91,8 @@ fP <- function(p, z, n, h2 = 0.5, m = 1e6, pi = 0.01) {
 # v = 0 => all SNPS, whatever the % variance they explain
 # PIP: threshold PIP above which we consider variant is causal
 pow <- function(PIP, v, n = 3000, h2 = 0.5, m = 1e6, pi = 0.01) {
-  integrate(fP, PIP, Inf, p = v, n = n, h2 = h2, m = m, pi = pi, abs.tol=0)$value
+  integrate(fP, P_2_z(PIP, n=n, h2 = h2, m = m, pi = pi), Inf, 
+            p = v, n = n, h2 = h2, m = m, pi = pi, 
+            abs.tol = 0, subdivisions = 10000)$value
 }
 
