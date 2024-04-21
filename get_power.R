@@ -133,25 +133,6 @@ plot(function(x) sapply(x, function(p) P_0(p)), xlim=c(0.01,0.99))
 
 test <- integrate(function(x) sapply(x, function(p) P_0(PIP=p)), 0.5, 1)
 
-# cut integral in 2
-P_0_1 <- function(PIP = 0.9, n = 1e8, h2 = 0.5,
-               gamma = c(0, 1e-5, 1e-4, 1e-3, 1e-2),
-               pi = c(0.99, 0.004, 0.003, 0.002, 0.001))
-{
-  sum(sapply(2:5, function(i) {
-    int <- integrate(function(x) exp(log_f_reparam(x,
-                                                   i = i,
-                                                   PIP = PIP,
-                                                   n = n,
-                                                   h2 = h2,
-                                                   gamma = gamma,
-                                                   pi = pi)), -10, 10, abs.tol=0)
-    if (int$message != "OK")
-      stop(paste0("Inner integral failed with message: ", int$message))
-    
-    4 * pi[i] / sum(Bs(n, h2, gamma)) / PIP * int$value
-  }))
-}
 
 g <- function(PIP, v = 0.01, n = 1e8, h2 = 0.5,
               gamma = c(0, 1e-5, 1e-4, 1e-3, 1e-2),
@@ -173,12 +154,7 @@ plot(function(x) sapply(x, function(p) h(p)), xlim=c(0.01,0.99))
 plot(function(x) sapply(x, function(p) g(p, n = 3000, v = 0.01, h2 = 0.5, gamma=c(0,1), pi = c(0.99, 0.01))), xlim=c(0.01,0.99))
 
 
-# new implementation as a fonction of z
-# 
-fz <- function() {
-  
-}
-
+# new implementation as a function of z
 # use log scale to avoid underflow and overflow
 log_fz <- function(v, i, z = 1, n = 1e8, h2 = 0.5,
                   gamma = c(0, 1e-5, 1e-4, 1e-3, 1e-2),
