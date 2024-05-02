@@ -12,10 +12,7 @@ bs <- runif(N)
 mean(dchisq(-log(as), 1, -log(bs) * n / (1 - h2)) / as * dnorm(sqrt(-log(bs)), 0, sqrt(h2 / m / pi)) / sqrt(-log(bs)) / bs)
 
 
-<<<<<<< HEAD
-=======
 
->>>>>>> 9385f8f (more experiments)
 # simpler try
 f <- function(x) {
   dnorm(x[1], 0, 1) + dnorm(x[2], 0, 1)
@@ -29,8 +26,7 @@ g <- function(x) {
 }
 cubintegrate(g, lower=c(0,0), upper=c(1, 1), method = "pcubature")
 
-<<<<<<< HEAD
-=======
+
 # analytical example
 # a compound random variable:exponential distributed with a rate from a [0,1] uniform
 
@@ -48,4 +44,3 @@ mean(rexp(10000, runif(10000))<2)
 as= runif(1000)
 bs = runif(1000)
 mean(as * exp(-as * bs))
->>>>>>> 9385f8f (more experiments)
