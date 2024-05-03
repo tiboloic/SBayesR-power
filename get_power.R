@@ -143,6 +143,10 @@ g <- function(PIP, v = 0.01, n = 1e8, h2 = 0.5,
     }))
 }
 
+###################
+###################
+###################
+
 # simple BayesC
 h <- function(PIP, n = 3000, v = 0.01, h2 = 0.5, gamma=c(0,1), pi = c(0.99, 0.01)) {
   lam <- ncp(v, h2, n)
@@ -173,7 +177,7 @@ plot(function(x) sapply(x, function(z) exp(log_fz(z = z, v = 0.01, i = 5,  n = 1
 # test using JZ's dPIP for BayesC
 # 
 
-P_2_z <- function(P, n, v, h2 = 0.5, m = 1e6, pi = 0.01) {
+P_2_z <- function(P, n, h2 = 0.5, m = 1e6, pi = 0.01) {
   lambda <- (1 - h2) / h2 * m * pi
   C <- n + lambda
   A <- pi / (1 - pi) * sqrt(lambda / C)
@@ -181,7 +185,7 @@ P_2_z <- function(P, n, v, h2 = 0.5, m = 1e6, pi = 0.01) {
   (log(P) - log(1-P) - log(A)) / B
 }
 
-z_2_P <- function(z, n, v, h2 = 0.5, m = 1e6, pi = 0.01) {
+z_2_P <- function(z, n, h2 = 0.5, m = 1e6, pi = 0.01) {
   lambda <- (1 - h2) / h2 * m * pi
   C <- n + lambda
   A <- pi / (1 - pi) * sqrt(lambda / C)
@@ -211,8 +215,8 @@ dPIP_reparam <- function(z, n, v, h2 = 0.5, m = 1e6, pi = 0.01) {
 integrate(dPIP_reparam, 0, +Inf, n = 3000, v = 0.01)
 
 # compare dPIP and dPIP reparam
-integrate(dPIP_reparam, P_2_z(0.1, n = 3000, v = 0.01), +Inf, n = 3000, v = 0.01)
-integrate(dPIP, 0.1, 1, n = 3000, v = 0.01)
+integrate(dPIP_reparam, P_2_z(0.1, n = 3000), P_2_z(0.9, n=3000), n = 3000, v = 0.01)
+integrate(dPIP, 0.1, 0.9, n = 3000, v = 0.01)
 # same !
 
 # now test ldchi
@@ -220,26 +224,49 @@ ldchi(1, 10)
 dchisq(1, 1, 10, log=TRUE)
 
 # test lnor
-lnor(10,1)
-dnorm(sqrt(10),0,1, log=TRUE)- 0.5 * log(10)
+lnor(10, .1)
+dnorm(sqrt(10),0, .1, log=TRUE)- 0.5 * log(10)
+dchisq(10/0.1^2, 1,log=TRUE) - 2 * log(0.1)
+# all the same
 
 # naive implementation
 dPIP_reparam <- function(z, n, v, h2 = 0.5, m = 1e6, pi = 0.01) {
-  lambda <- (1 - h2) / h2 * m * pi
-  C <- n + lambda
-  A <- pi / (1 - pi) * sqrt(lambda / C)
-  B <- 0.5 * n * (1 - h2) / C
+  #lambda <- (1 - h2) / h2 * m * pi
+  #C <- n + lambda
+  #A <- pi / (1 - pi) * sqrt(lambda / C)
+  #B <- 0.5 * n * (1 - h2) / C
   ncp = n * v / (1 - h2)
   dchisq(z, 1, ncp) * dnorm(sqrt(v), 0, sqrt(h2 / m / pi)) / sqrt(v)
 }
+
+dPIP_stable <- function(z, n, v, h2 = 0.5, m = 1e6, pi = 0.01) {
+  ncp = n * v / (1 - h2)
+  exp(ldchi(z, ncp) + lnor(v,sqrt(h2 / m / pi)))
+}
+# plot as a function of z
 plot(function(x) sapply(x, function(z) dPIP_reparam(z, n = 3000, v = 1e-4)), xlim = c(0.1,5))
+
+# plot as a function of v
+plot(function(x) sapply(x, function(v) dPIP_reparam(P_2_z(0.9, n=3000), n = 3000, v)), xlim = c(0.000001,0.002))
+plot(function(x) sapply(x, function(v) dPIP_stable(P_2_z(0.9, n=3000), n = 3000, v)), xlim = c(0.000001,0.002), col = 2, add=T)
+# numerical errors ? seems strange
+plot(function(x) sapply(x, function(v) dPIP_reparam(20, n = 3000, v)), xlim = c(0.000001,0.002))
+plot(function(x) sapply(x, function(v) dPIP_stable(20, n = 3000, v)), xlim = c(0.000001,0.002), col=2, add=T)
+
 
 naive_inner <- function(z, n, h2 = 0.5, m = 1e6, pi = 0.01)
   sapply(z, function(z) 
-    integrate(function(x) dPIP_reparam(z=z, n=n, v = x, m=m, pi=pi), 0, +Inf, abs.tol = 0, subdivisions=1000)$value
+    integrate(function(x) dPIP_reparam(z=z, n=n, v = x, m=m, pi=pi), 0, +Inf, abs.tol = 0, subdivisions=10000)$value
   )
+naive_inner_stable <- function(z, n, h2 = 0.5, m = 1e6, pi = 0.01)
+  sapply(z, function(z) 
+    integrate(function(x) dPIP_stable(z=z, n=n, v = x, m=m, pi=pi), 0, +Inf, abs.tol = 0, subdivisions=10000)$value
+  )
+plot(function(x) sapply(x, function(z) naive_inner(z, n = 30000)), xlim = c(0.1,1))
+plot(function(x) sapply(x, function(z) naive_inner_stable(z, n = 30000)), xlim = c(0.1,1))
 
-plot(function(x) sapply(x, function(z) naive_inner(z, n = 30000)), xlim = c(0.1,10))
+# mc integration
+
 
 # try integrate naive_inner ?
 naive_outer <- function(n, h2 = 0.5, m = 1e6, pi = 0.01) {
@@ -263,8 +290,35 @@ fP <- function(z, n, h2 = 0.5, m = 1e6, pi = 0.01) {
     -15, 15, abs.tol = 0)$value
   })
 }
-plot(function(x) sapply(x, function(z) fP(z, n = 3000)), xlim = c(0.01,10))
+plot(function(x) sapply(x, function(p) fP(z, n = 3000)), xlim = c(0.01,1))
+plot(function(x) sapply(x, function(p) fP(P_2_z(x,n=3000), n = 3000)), xlim = c(0.01,1))
 
-pow <- function(n = 3000, h2 = 0.5, m = 1e6, pi = 0.01) {
-  integrate(fP, 0.000, Inf, n = n, h2 = h2, m = m, pi = pi, abs.tol=0)$value
+pow <- function(P0, n = 3000, h2 = 0.5, m = 1e6, pi = 0.01) {
+  integrate(fP, P_2_z(P0, n, h2, m, pi), Inf, n = n, h2 = h2, m = m, pi = pi, abs.tol=0)$value
 }
+
+# example where it fails:
+mean(sapply(runif(1000, 0.8, 1), function(p) fP(P_2_z(p , n=30000, h2, m, pi=0.001), n=30000, h2, m, pi=0.001)))
+pow(0.8, n=30000, pi=0.001)
+
+# check fP with MC integration
+f_mc_1 <- function(P, n, h2, m, pi) {
+  lambda <- (1 - h2) / h2 * m * pi
+  C <- n + lambda
+  A <- pi / (1 - pi) * sqrt(lambda / C)
+  B <- 0.5 * n * (1 - h2) / C
+  zs <- rnorm(N, 0, sqrt(h2 / m / pi))^2
+  mean(dchisq((log(P) - log(1-P) - log(A)) / B, 1, n * zs / (1 - h2))) / P / (1 - P) / B
+}
+fP_1 <- function(P, n, h2, m, pi) {
+  fP(P_2_z(P , n, h2, m, pi), n, h2, m, pi)
+}
+f_mc_2 <- function(z, n, h2, m, pi) {
+  vs <- rnorm(N, 0, sqrt(h2 / m / pi))^2
+  mean(dchisq(z, 1, n * vs / (1 - h2)))
+}
+
+fP(1, n = 3000, h2, m, pi)
+f_mc_2(1, n = 3000, h2, m, pi)
+fP(1, n = 3000, h2, m=1e5, pi)
+f_mc_2(1, n = 3000, h2, m=1e5, pi)
