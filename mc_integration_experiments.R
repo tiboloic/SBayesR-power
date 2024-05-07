@@ -36,9 +36,9 @@ exp_unif_anal <- function(x) {
 }
 
 # MC integration by compound drawing
-mean(rexp(10000, runif(10000))<2)
+mean(rexp(10000, runif(10000))>2)
 
-# MC integration by drawing from mixing distribution
+# MC integration by drawing from mixing distribution (doing inner integral)
 
 # MC integration by double integral
 as= runif(1000)
