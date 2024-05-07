@@ -99,17 +99,14 @@ pow(0.9, 30000, 0.5, 1e5, 0.001)
 pow_cub(0.9, n=30000, h2 = 0.5, m = 1e5, pi=0.001)
 # same. pow_cub is way faster
 
-k <-  function(x, n=30000, h2 = 0.5, m = 1e5, pi=0.001) {
-  P <- x[1]
-  y <- x[2]
+l <-  function(x, o=30000, p = 0.5, q = 1e5, r=0.001) {
+  z <- x[1]
+  v <- x[2]
   
-  lambda <- (1 - h2) / h2 * m * pi
-  C <- n + lambda
-  A <- pi / (1 - pi) * sqrt(lambda / C)
-  B <- 0.5 * n * (1 - h2) / C
-  uP <- log(P / (1-P) / A) / B
-  ncp <- - n * log(y) / (1 - h2)
-  exp(ldchi(uP, ncp) + lnor(-log(y), sqrt(h2 / m / pi)) -log(B * P * (1-P) * y))
+  ncp <- o * v / (1 - h2)
+  exp(ldchi(z, ncp) + lnor(v, sqrt(h2 / q / pi))) 
 }
-  
+pow_cub_3 <- function(P0, n = 3000, h2 = 0.5, m = 1e6, pi = 0.01) {
+  cubintegrate(l, lower = c(P_2_z(P0, n, h2, m, pi), 0), upper = c(Inf, Inf), relTol = 1e-10,
+               method = "cuhre", o = n, p = h2, q = m, r = pi)
 }

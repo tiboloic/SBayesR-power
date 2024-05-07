@@ -266,10 +266,8 @@ naive_inner <- function(z, n, h2 = 0.5, m = 1e6, pi = 0.01)
   sapply(z, function(z) 
     integrate(function(x) dPIP_reparam(z=z, n=n, v = x, m=m, pi=pi), 0, +Inf, abs.tol = 0, subdivisions=10000)$value
   )
-naive_inner_stable <- function(z, n, h2 = 0.5, m = 1e6, pi = 0.01)
-  sapply(z, function(z) 
-    integrate(function(x) dPIP_stable(z=z, n=n, v = x, m=m, pi=pi), 0, +Inf, abs.tol = 0, subdivisions=10000)$value
-  )
+
+
 plot(function(x) sapply(x, function(z) naive_inner(z, n = 30000)), xlim = c(0.1,1))
 plot(function(x) sapply(x, function(z) naive_inner_stable(z, n = 30000)), xlim = c(0.1,1))
 
@@ -304,9 +302,17 @@ plot(function(x) sapply(x, function(p) fP(P_2_z(x,n=3000), n = 3000)), xlim = c(
 pow <- function(P0, n = 3000, h2 = 0.5, m = 1e6, pi = 0.01) {
   integrate(fP, P_2_z(P0, n, h2, m, pi), Inf, n = n, h2 = h2, m = m, pi = pi, abs.tol=0)$value
 }
+
 pow_cub <- function(P0, n = 3000, h2 = 0.5, m = 1e6, pi = 0.01) {
-  hcubature(j, lower = c(P_2_z(P0, n, h2, m, pi),-30), upper = c(Inf,30),
-               absError = .Machine$double.eps)
+  cubintegrate(j, lower = c(P_2_z(P0, n, h2, m, pi),-30), upper = c(Inf,30),
+               method = "hcubature", absTol = 1e-12, maxEval = 1e7,#.Machine$double.eps,
+               o = n, h2 = h2, q = m, pi = pi)
+}
+
+pow_cub2 <- function(P0, n = 3000, h2 = 0.5, m = 1e6, pi = 0.01) {
+  cubintegrate(j, lower = c(P_2_z(P0, n, h2, m, pi),-30), upper = c(Inf,30),
+               method = "hcubature", absTol = 1e-12, maxEval = 1e7,#.Machine$double.eps,
+               o = n, h2 = h2, q = m, pi = pi)
 }
 
 # example where it fails:
@@ -363,6 +369,7 @@ f_mc_4 <- function(P0, n, h2, m, pi, N = 1000) {
     mean(z_2_P(rchisq(N, 1, ncp), n, h2, m , pi) > P0)}))
 }
 pow(0.2, n=30000, h2 = 0.5, m = 1e6, pi=0.001)
+pow_cub(0.2, n=30000, h2 = 0.5, m = 1e6, pi=0.001)
 f_mc_3(0.2, n=30000, h2 = 0.5, m = 1e6, pi=0.001)
 f_mc_4(0.2, n=30000, h2 = 0.5, m = 1e6, pi=0.001)
 
