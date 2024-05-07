@@ -6,7 +6,7 @@
 # first scenario, looking at all SNPs (alpha_v = 0)
 
 # parameters
-n <- 10000
+n <- 30000
 h2 <- 0.5
 pi <- 0.01
 m <- 1e6
@@ -24,7 +24,7 @@ plot(function(x) dnorm(sqrt(x), 0, sqrt(h2 / m / pi)) / sqrt(x),
      xlim = c(min(vs), max(vs)), add = TRUE)
 
 # test naive MC integration drawing from chi2
-P_v <- sapply(vs, function(v) mean(rchisq(N, 1, n * v / (1 - h2)) > 0.1))
+P_v <- sapply(vs, function(v) mean(rchisq(N, 1, n * v / (1 - h2)) > 0.9))
 mean(P_v)
 
 # test inner integral

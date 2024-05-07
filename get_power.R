@@ -213,6 +213,14 @@ dPIP_reparam <- function(z, n, v, h2 = 0.5, m = 1e6, pi = 0.01) {
   dchisq(z, 1, ncp)
 }
 integrate(dPIP_reparam, 0, +Inf, n = 3000, v = 0.01)
+# both integrate to 1
+
+integrate(dPIP_reparam, P_2_z(0.5, n=3000, h2, m, pi), +Inf, n = 3000, v = 0.01)
+integrate(dPIP, 0.5, 1, n = 3000, v = 0.01)
+
+integrate(dPIP_reparam, P_2_z(0.2, n=3000, h2, m, pi), +Inf, n = 3000, v = 0.01)
+integrate(dPIP, 0.2, 1, n = 3000, v = 0.01)
+# same
 
 # compare dPIP and dPIP reparam
 integrate(dPIP_reparam, P_2_z(0.1, n = 3000), P_2_z(0.9, n=3000), n = 3000, v = 0.01)
@@ -296,10 +304,16 @@ plot(function(x) sapply(x, function(p) fP(P_2_z(x,n=3000), n = 3000)), xlim = c(
 pow <- function(P0, n = 3000, h2 = 0.5, m = 1e6, pi = 0.01) {
   integrate(fP, P_2_z(P0, n, h2, m, pi), Inf, n = n, h2 = h2, m = m, pi = pi, abs.tol=0)$value
 }
+pow_cub <- function(P0, n = 3000, h2 = 0.5, m = 1e6, pi = 0.01) {
+  hcubature(j, lower = c(P_2_z(P0, n, h2, m, pi),-30), upper = c(Inf,30),
+               absError = .Machine$double.eps)
+}
 
 # example where it fails:
-mean(sapply(runif(1000, 0.8, 1), function(p) fP(P_2_z(p , n=30000, h2, m, pi=0.001), n=30000, h2, m, pi=0.001)))
-pow(0.8, n=30000, pi=0.001)
+mean(sapply(runif(1000, 0.00502515, 1), function(p) fP(P_2_z(p , n=30000, h2, m, pi=0.01), n=30000, h2, m, pi=0.001)))
+mean(sapply(runif(1000, 0, 1), function(u) fP(-log(u), n=30000, h2, m, pi=0.001)))
+pow(0.1, n=30000, h2 = 0.1, m = 1e5, pi=0.001)
+pow_cub(0.1, n=30000, h2 = 0.1, m = 1e5, pi=0.001)
 
 # check fP with MC integration
 f_mc_1 <- function(P, n, h2, m, pi) {
@@ -308,11 +322,19 @@ f_mc_1 <- function(P, n, h2, m, pi) {
   A <- pi / (1 - pi) * sqrt(lambda / C)
   B <- 0.5 * n * (1 - h2) / C
   zs <- rnorm(N, 0, sqrt(h2 / m / pi))^2
-  mean(dchisq((log(P) - log(1-P) - log(A)) / B, 1, n * zs / (1 - h2))) / P / (1 - P) / B
+  2 * mean(dchisq(log(P/(1-P)/A) / B, 1, n * zs / (1 - h2))) / P / (1 - P) / B
 }
 fP_1 <- function(P, n, h2, m, pi) {
   fP(P_2_z(P , n, h2, m, pi), n, h2, m, pi)
 }
+
+f_mc_1(0.1, 30000, h2, m, pi)
+fP_1(0.1, 30000, h2, m, pi)
+# not the same !
+
+
+# compare 
+# compare.MC integration and numerical integration on fP reparametrized in z
 f_mc_2 <- function(z, n, h2, m, pi) {
   vs <- rnorm(N, 0, sqrt(h2 / m / pi))^2
   mean(dchisq(z, 1, n * vs / (1 - h2)))
@@ -322,3 +344,37 @@ fP(1, n = 3000, h2, m, pi)
 f_mc_2(1, n = 3000, h2, m, pi)
 fP(1, n = 3000, h2, m=1e5, pi)
 f_mc_2(1, n = 3000, h2, m=1e5, pi)
+# they match
+
+# new attempt to get power by MC integraation
+# following JZ's approach
+f_mc_3 <- function(P0, n, h2, m, pi, N = 1000) {
+  vs <- rnorm(N, 0, sqrt(h2 / m / pi)) ^2
+  
+  mean(sapply(vs, function(v) {
+    ncp <- n * v / (1 - h2)
+    mean(rchisq(N, 1, ncp) > P_2_z(P0, n, h2, m, pi))}))
+}
+f_mc_4 <- function(P0, n, h2, m, pi, N = 1000) {
+  vs <- rnorm(N, 0, sqrt(h2 / m / pi)) ^2
+  
+  mean(sapply(vs, function(v) {
+    ncp <- n * v / (1 - h2)
+    mean(z_2_P(rchisq(N, 1, ncp), n, h2, m , pi) > P0)}))
+}
+pow(0.2, n=30000, h2 = 0.5, m = 1e6, pi=0.001)
+f_mc_3(0.2, n=30000, h2 = 0.5, m = 1e6, pi=0.001)
+f_mc_4(0.2, n=30000, h2 = 0.5, m = 1e6, pi=0.001)
+
+# power calculation fail for very large SNP effect for a few SNPS
+pow(0.2, n=30000, h2 = 0.7, m = 5e3, pi=0.01)
+pow_cub(0.2, n=30000, h2 = 0.7, m = 5e3, pi=0.01)
+f_mc_3(0.2, n=30000, h2 = 0.7, m = 5e3, pi=0.01)
+f_mc_4(0.2, n=30000, h2 = 0.7, m = 5e3, pi=0.01)
+
+# but OK for "decent" parameters
+# power calculation fail for very large SNP effect for a few SNPS
+pow(0.2, n=30000, h2 = 0.7, m = 1e5, pi=0.01)
+pow_cub(0.2, n=30000, h2 = 0.7, m = 1e5, pi=0.01)
+f_mc_3(0.2, n=30000, h2 = 0.7, m = 1e5, pi=0.01)
+f_mc_4(0.2, n=30000, h2 = 0.7, m = 1e5, pi=0.01)
