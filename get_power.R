@@ -373,8 +373,20 @@ f_mc_3(0.2, n=30000, h2 = 0.7, m = 5e3, pi=0.01)
 f_mc_4(0.2, n=30000, h2 = 0.7, m = 5e3, pi=0.01)
 
 # but OK for "decent" parameters
-# power calculation fail for very large SNP effect for a few SNPS
 pow(0.2, n=30000, h2 = 0.7, m = 1e5, pi=0.01)
 pow_cub(0.2, n=30000, h2 = 0.7, m = 1e5, pi=0.01)
 f_mc_3(0.2, n=30000, h2 = 0.7, m = 1e5, pi=0.01)
 f_mc_4(0.2, n=30000, h2 = 0.7, m = 1e5, pi=0.01)
+
+# new try with different integration order
+P_v <- function(y, n, h2, m, pi) {
+  integrate()
+}
+  
+  fP <- function(z, n, h2 = 0.5, m = 1e6, pi = 0.01) {
+    sapply(z, function(z) {
+      integrate(
+        function(y) exp(log_f_reparam(z, y = y, n = n, h2 = h2, m = m, pi = pi)),
+        -15, 15, abs.tol = 0)$value
+    })
+  }

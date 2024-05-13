@@ -2,21 +2,6 @@
 # 
 # SBayesC power calculations
 
-
-
-Bs <- function(n, h2, gamma) {
-  # eq. 9  
-  lambda <- (1 - h2) / (gamma * h2)
-  
-  # eq. 10
-  C <- n + lambda
-  
-  # eq. 21
-  B <- 0.5 * n * (1 - h2) / C
-  
-  B
-}
-
 ## functions to handle re parametrisation
 
 P_2_z <- function(P, n, h2 = 0.5, m = 1e6, pi = 0.01) {
