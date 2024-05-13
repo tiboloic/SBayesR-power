@@ -62,9 +62,14 @@ f <- function(v, i, PIP = 0.9, n = 100, h2 = 0.5,
 # density is concentrate around 0+
 
 # re implement robust non central chi-square with 1 degree of freedom
-ldchi <- function(x, lambda) {
-  log(0.5) -0.5 * (sqrt(lambda) - sqrt(x))^2 - 0.25 * log(x/lambda) +
-    log(besselI(sqrt(x * lambda), -0.5, expon.scaled = TRUE))
+# numerically robust non central chi-square with 1 degree of freedom
+ldchi <- function(x, ncp) {
+  if (ncp == 0) {
+    dchisq(x, 1, log = TRUE)
+  } else {
+    log(0.5) -0.5 * (sqrt(ncp) - sqrt(x))^2 - 0.25 * log(x/ncp) +
+      log(besselI(sqrt(x * ncp), -0.5, expon.scaled = TRUE))
+  }
 }
 
 lnor <- function(x, sig) {
@@ -288,6 +293,12 @@ log_f_reparam <- function(z, y, n = 300, h2 = 0.5, m = 1e6, pi = 0.01)
     lnor((1 - h2) / n * exp(y), sqrt(h2 / m / pi)) +
     log(1 - h2) - log(n) + y
 } 
+f_reparam <- function(z, y, n = 300, h2 = 0.5, m = 1e6, pi = 0.01)
+{
+  exp(ldchi(z, exp(y)) + 
+    lnor((1 - h2) / n * exp(y), sqrt(h2 / m / pi)) +
+    log(1 - h2) - log(n) + y)
+} 
 
 fP <- function(z, n, h2 = 0.5, m = 1e6, pi = 0.01) {
   sapply(z, function(z) {
@@ -386,14 +397,12 @@ f_mc_3(0.2, n=30000, h2 = 0.7, m = 1e5, pi=0.01)
 f_mc_4(0.2, n=30000, h2 = 0.7, m = 1e5, pi=0.01)
 
 # new try with different integration order
-P_v <- function(y, n, h2, m, pi) {
-  integrate()
+P_v <- function(y, P0, n, h2, m, pi) {
+  integrate(f_reparam, P_2_z(P0, n, h2, m, pi), Inf, 
+            y = y, n = n, h2 = h2, m = m, pi = pi,
+            abs.tol = 0)
 }
-  
-  fP <- function(z, n, h2 = 0.5, m = 1e6, pi = 0.01) {
-    sapply(z, function(z) {
-      integrate(
-        function(y) exp(log_f_reparam(z, y = y, n = n, h2 = h2, m = m, pi = pi)),
-        -15, 15, abs.tol = 0)$value
-    })
-  }
+pow_inv <- function(P0, n, h2, m, pi) {
+  integrate(function(ys, P0, n, h2, m, pi) sapply(ys, P_v(y, P0, n, h2, m, pi)),
+            -Inf, +Inf, P0 = P0, n = n, h2 = h2, m = m, pi = pi)
+}
