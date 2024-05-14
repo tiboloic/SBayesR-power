@@ -61,13 +61,28 @@ f <- function(v, i, PIP = 0.9, n = 100, h2 = 0.5,
 # plot terms to see
 # density is concentrate around 0+
 
-# re implement robust non central chi-square with 1 degree of freedom
 # numerically robust non central chi-square with 1 degree of freedom
+# # vectorized in x and ncp
 ldchi <- function(x, ncp) {
-  if (ncp == 0) {
-    dchisq(x, 1, log = TRUE)
+  if (length(ncp) > 1) {
+    res <- numeric(length(ncp))
+    if (any(ncp == 0)) {
+      if (length(x) > 1) sub_x <- x[ncp == 0]
+      else sub_x <- x
+      res[ncp == 0] <- dchisq(sub_x, 1, log = TRUE)
+    }
+    if (any(ncp > 0)) {
+      if(length(x) > 1) x <- x[ncp > 0]
+      res[ncp > 0] <- log(0.5) -0.5 * (sqrt(ncp[ncp>0]) - sqrt(x))^2 - 0.25 *
+        log(x/ncp[ncp>0]) + 
+        log(besselI(sqrt(x * ncp[ncp>0]), -0.5, expon.scaled = TRUE))
+    }
+    res
   } else {
-    log(0.5) -0.5 * (sqrt(ncp) - sqrt(x))^2 - 0.25 * log(x/ncp) +
+    if(ncp == 0)
+      dchisq(x, 1, log = TRUE)
+    else
+      log(0.5) -0.5 * (sqrt(ncp) - sqrt(x))^2 - 0.25 * log(x/ncp) +
       log(besselI(sqrt(x * ncp), -0.5, expon.scaled = TRUE))
   }
 }
@@ -187,6 +202,8 @@ P_2_z <- function(P, n, h2 = 0.5, m = 1e6, pi = 0.01) {
   C <- n + lambda
   A <- pi / (1 - pi) * sqrt(lambda / C)
   B <- 0.5 * n * (1 - h2) / C
+  Pmin <- 1 - 1 / (1 + A)
+  P <- max(P, Pmin)
   (log(P) - log(1-P) - log(A)) / B
 }
 
@@ -314,10 +331,11 @@ pow <- function(P0, n = 3000, h2 = 0.5, m = 1e6, pi = 0.01) {
   integrate(fP, P_2_z(P0, n, h2, m, pi), Inf, n = n, h2 = h2, m = m, pi = pi, abs.tol=0)$value
 }
 
+j <- function(x, o, h2, q, pi) exp(log_f_reparam(x[1], y = x[2], n = o, h2 = h2, m = q, pi = pi))
 pow_cub <- function(P0, n = 3000, h2 = 0.5, m = 1e6, pi = 0.01) {
-  cubintegrate(j, lower = c(P_2_z(P0, n, h2, m, pi),-30), upper = c(Inf,30),
-               method = "hcubature", absTol = 1e-12, maxEval = 1e7,#.Machine$double.eps,
-               o = n, h2 = h2, q = m, pi = pi)
+  hcubature(j, lower = c(P_2_z(P0, n, h2, m, pi),-30), upper = c(Inf,30),
+            o = n, h2 = h2, q = m, pi = pi,
+            tol = sqrt(.Machine$double.eps))
 }
 
 pow_cub2 <- function(P0, n = 3000, h2 = 0.5, m = 1e6, pi = 0.01) {
@@ -398,11 +416,86 @@ f_mc_4(0.2, n=30000, h2 = 0.7, m = 1e5, pi=0.01)
 
 # new try with different integration order
 P_v <- function(y, P0, n, h2, m, pi) {
+  # vectorize for integration
+  sapply(y, function(this_y)
   integrate(f_reparam, P_2_z(P0, n, h2, m, pi), Inf, 
-            y = y, n = n, h2 = h2, m = m, pi = pi,
-            abs.tol = 0)
+            y = this_y, n = n, h2 = h2, m = m, pi = pi,
+            abs.tol = 0)$value)
+}
+P_v_cub <- function(y, P0, n_, h2, m, pi) {
+  # vectorize for integration
+  sapply(y, function(this_y)
+    hcubature(f_reparam, P_2_z(P0, n_, h2, m, pi), Inf,
+              y = this_y, n = n_, h2 = h2, m = m, pi = pi,
+              tol = sqrt(.Machine$double.eps))$integral)
 }
 pow_inv <- function(P0, n, h2, m, pi) {
-  integrate(function(ys, P0, n, h2, m, pi) sapply(ys, P_v(y, P0, n, h2, m, pi)),
-            -Inf, +Inf, P0 = P0, n = n, h2 = h2, m = m, pi = pi)
+  integrate(P_v,
+            -20, +20, P0 = P0, n = n, h2 = h2, m = m, pi = pi,
+            abs.tol = 0, subdivisions = 10000)
 }
+pow_inv_cub <- function(P0, n, h2, m, pi) {
+  hcubature(P_v_cub, -20, +20,
+            P0 = P0, n_ = n, h2 = h2, m = m, pi = pi,
+            tol = sqrt(.Machine$double.eps))
+}
+pow(0.2, n=30000, h2 = 0.5, m = 1e6, pi=0.001)
+pow_inv(0.2, n=30000, h2 = 0.5, m = 1e6, pi=0.001)
+pow_inv_cub(0.2, n=30000, h2 = 0.5, m = 1e6, pi=0.001)
+f_mc_3(0.2, n=30000, h2 = 0.5, m = 1e6, pi=0.001)
+f_mc_4(0.2, n=30000, h2 = 0.5, m = 1e6, pi=0.001)
+
+# power calculation fail for very large SNP effect for a few SNPS
+pow(0.2, n=30000, h2 = 0.7, m = 5e3, pi=0.01)
+pow_inv(0.2, n=30000, h2 = 0.7, m = 5e3, pi=0.01)
+pow_inv_cub(0.2, n=30000, h2 = 0.7, m = 5e3, pi=0.01)
+pow_cub(0.2, n=30000, h2 = 0.7, m = 5e3, pi=0.01)
+f_mc_3(0.2, n=30000, h2 = 0.7, m = 5e3, pi=0.01)
+f_mc_4(0.2, n=30000, h2 = 0.7, m = 5e3, pi=0.01)
+
+# but OK for "decent" parameters
+pow(0.2, n=30000, h2 = 0.7, m = 1e5, pi=0.01)
+pow_inv(0.2, n=30000, h2 = 0.7, m = 1e5, pi=0.01)
+pow_cub(0.2, n=30000, h2 = 0.7, m = 1e5, pi=0.01)
+pow_inv_cub(0.2, n=30000, h2 = 0.7, m = 1e5, pi=0.01)
+f_mc_3(0.2, n=30000, h2 = 0.7, m = 1e5, pi=0.01)
+f_mc_4(0.2, n=30000, h2 = 0.7, m = 1e5, pi=0.01)
+
+# last try with double chi-square
+g <- function(z, v, n = 300, h2 = 0.5, m = 1e6, pi = 0.01)
+{
+  exp(ldchi(z, n * v/(1 - h2)) + 
+        dchisq(v * m * pi / h2, 1, log = TRUE) - log(m * pi / h2))
+} 
+g_cub <- function(x, n = 300, h2 = 0.5, m = 1e6, pi = 0.01)
+{
+  z <- x[1]; v <- x[2];
+  exp(ldchi(z, n * v / (1 - h2)) + 
+        dchisq(v * m * pi / h2, 1, log = TRUE) + log(m * pi / h2))
+} 
+pow_g_cub <- function(P0, n = 3000, h2 = 0.5, m = 1e6, pi = 0.01) {
+  hcubature(g_cub, lower = c(P_2_z(P0, n, h2, m, pi), 0), upper = c(Inf,Inf),
+          n = n, h2 = h2, m = m, pi = pi,
+          tol = sqrt(.Machine$double.eps))
+}
+h_cub <- function(x, n = 300, h2 = 0.5, m = 1e6, pi = 0.01)
+{
+  z <- x[1]; y <- x[2];
+  exp(dchisq(z, 1, n * y * h2 / (1 - h2) / m / pi, log = TRUE) + 
+        dchisq(y, 1, log = TRUE))
+} 
+pow_h_cub <- function(P0, n = 3000, h2 = 0.5, m = 1e6, pi = 0.01) {
+  hcubature(h_cub, lower = c(P_2_z(P0, n, h2, m, pi), 0), upper = c(Inf,Inf),
+            n = n, h2 = h2, m = m, pi = pi,
+            tol = sqrt(.Machine$double.eps))
+}
+
+pow_g_cub(0.2, n=30000, h2 = 0.7, m = 1e5, pi=0.01)
+
+pow(0.2, n=30000, h2 = 0.5, m = 1e6, pi=0.001)
+pow_inv(0.2, n=30000, h2 = 0.5, m = 1e6, pi=0.001)
+pow_inv_cub(0.2, n=30000, h2 = 0.5, m = 1e6, pi=0.001)
+pow_g_cub(0.2, n=30000, h2 = 0.5, m = 1e6, pi=0.001)
+pow_h_cub(0.2, n=30000, h2 = 0.5, m = 1e6, pi=0.001)
+f_mc_3(0.2, n=30000, h2 = 0.5, m = 1e6, pi=0.001)
+f_mc_4(0.2, n=30000, h2 = 0.5, m = 1e6, pi=0.001)

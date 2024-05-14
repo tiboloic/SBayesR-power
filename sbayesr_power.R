@@ -33,6 +33,7 @@ P_2_z <- function(P, n, h2 = 0.5, gammas, pis) {
           maxiter = 100000)$root
 }
 
+# try with optimize. Not better
 P_2_z_2 <- function(P, n, h2 = 0.5, gammas, pis) {
   Pmin <- z_2_P(0, n, h2, gammas, pis)
   P <- max(P, Pmin)
