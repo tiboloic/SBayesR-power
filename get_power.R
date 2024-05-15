@@ -461,7 +461,7 @@ pow_inv_cub(0.2, n=30000, h2 = 0.7, m = 1e5, pi=0.01)
 f_mc_3(0.2, n=30000, h2 = 0.7, m = 1e5, pi=0.01)
 f_mc_4(0.2, n=30000, h2 = 0.7, m = 1e5, pi=0.01)
 
-# last try with double chi-square
+# another try with double chi-square
 g <- function(z, v, n = 300, h2 = 0.5, m = 1e6, pi = 0.01)
 {
   exp(ldchi(z, n * v/(1 - h2)) + 
@@ -499,3 +499,18 @@ pow_g_cub(0.2, n=30000, h2 = 0.5, m = 1e6, pi=0.001)
 pow_h_cub(0.2, n=30000, h2 = 0.5, m = 1e6, pi=0.001)
 f_mc_3(0.2, n=30000, h2 = 0.5, m = 1e6, pi=0.001)
 f_mc_4(0.2, n=30000, h2 = 0.5, m = 1e6, pi=0.001)
+
+# another try using pracma, with a change of variables to (0,1)
+
+i_prac <- function(u, t, n, h2, m, pi) {
+  exp(ldchi(-log(t), -n * log(u) / (1 - h2)) - log(t) - 0.5 * log(-log(u)) - log(u) +
+        dnorm(sqrt(-log(u)), sqrt(h2 / m / pi), log = TRUE))
+}
+i_prac <- function(u, t, n, h2, m, pi) {
+  exp(ldchi(-log(t), -n * log(u) / (1 - h2)) - log(t) - log(u) +
+        lnor(-log(u), sqrt(h2 / m / pi)))
+}
+# test with normal integration, compare to fP
+integrate(i_prac, 0, 1, t = exp(-100), n=30000, h2 = 0.5, m = 1e6, pi=0.001, abs.tol = 0)
+fP(1, 30000, 0.5, 1e6, 0.001)
+# there is a bug
