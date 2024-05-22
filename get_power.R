@@ -500,7 +500,7 @@ pow_h_cub(0.2, n=30000, h2 = 0.5, m = 1e6, pi=0.001)
 f_mc_3(0.2, n=30000, h2 = 0.5, m = 1e6, pi=0.001)
 f_mc_4(0.2, n=30000, h2 = 0.5, m = 1e6, pi=0.001)
 
-# another try using pracma, with a change of variables to (0,1)
+# experiment using pracma, with a change of variables to (0,1)
 
 i_prac <- function(u, t, n, h2, m, pi) {
   exp(ldchi(-log(t), -n * log(u) / (1 - h2)) - log(t) - 0.5 * log(-log(u)) - log(u) +

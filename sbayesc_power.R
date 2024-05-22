@@ -18,6 +18,10 @@ z_2_P <- function(z, n, h2 = 0.5, m = 1e6, pi = 0.01) {
   A <- pi / (1 - pi) * sqrt(lambda / C)
   B <- 0.5 * n * (1 - h2) / C
   1 - 1 / (1 + A * exp(B * z))
+  #cat(lambda, '\n')
+  #cat (A, '\n')
+  #cat(B, '\n')
+  #cat(C, '\n')
 }
 
 # numerically robust non central chi-square with 1 degree of freedom
