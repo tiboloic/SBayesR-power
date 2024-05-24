@@ -483,9 +483,20 @@ h_cub <- function(x, n = 300, h2 = 0.5, m = 1e6, pi = 0.01)
   z <- x[1]; y <- x[2];
   exp(dchisq(z, 1, n * y * h2 / (1 - h2) / m / pi, log = TRUE) + 
         dchisq(y, 1, log = TRUE))
-} 
+}
+h_cub_ap <- function(x, n = 300, h2 = 0.5, m = 1e6, pi = 0.01)
+{
+  z <- x[1]; y <- x[2];
+  exp(ldchi_ap(z, n * y * h2 / (1 - h2) / m / pi) + 
+        dchisq(y, 1, log = TRUE))
+}
 pow_h_cub <- function(P0, n = 3000, h2 = 0.5, m = 1e6, pi = 0.01) {
   hcubature(h_cub, lower = c(P_2_z(P0, n, h2, m, pi), 0), upper = c(Inf,Inf),
+            n = n, h2 = h2, m = m, pi = pi,
+            tol = sqrt(.Machine$double.eps))
+}
+pow_h_cub_ap <- function(P0, n = 3000, h2 = 0.5, m = 1e6, pi = 0.01) {
+  hcubature(h_cub_ap, lower = c(P_2_z(P0, n, h2, m, pi), 0), upper = c(Inf,Inf),
             n = n, h2 = h2, m = m, pi = pi,
             tol = sqrt(.Machine$double.eps))
 }
@@ -513,4 +524,74 @@ i_prac <- function(u, t, n, h2, m, pi) {
 # test with normal integration, compare to fP
 integrate(i_prac, 0, 1, t = exp(-100), n=30000, h2 = 0.5, m = 1e6, pi=0.001, abs.tol = 0)
 fP(1, 30000, 0.5, 1e6, 0.001)
-# there is a bug
+# there is inconsistency between integration methods
+
+ldchi_ap <- function(x, ncp) {
+  dnorm(x, 1 + ncp, sqrt(2 + 4 * ncp), log = TRUE)
+}
+
+f_reparam_ap <- function(z, y, n = 300, h2 = 0.5, m = 1e6, pi = 0.01)
+{
+  exp(ldchi_ap(z, exp(y)) + 
+        lnor((1 - h2) / n * exp(y), sqrt(h2 / m / pi)) +
+        log(1 - h2) - log(n) + y)
+} 
+
+fP_ap <- function(z, n, h2 = 0.5, m = 1e6, pi = 0.01) {
+  sapply(z, function(z) {
+    integrate(
+      function(y) f_reparam(z, y = y, n = n, h2 = h2, m = m, pi = pi),
+      -15, 15, abs.tol = 0)$value
+  })
+}
+
+pow_ap <- function(P0, n = 3000, h2 = 0.5, m = 1e6, pi = 0.01) {
+  integrate(fP_ap, P_2_z(P0, n, h2, m, pi), Inf, n = n, h2 = h2, m = m, pi = pi, abs.tol=0)$value
+}
+
+# Compare fP and fP_ap
+fP(10, 1e6)
+fP_ap(10, 1e6)
+
+# compare power
+pow(0.2, n=1e6, h2 = 0.5, m = 1e6, pi=0.001)     
+pow_ap(0.2, n=1e6, h2 = 0.5, m = 1e6, pi=0.001)
+# works well but is not fastre
+
+f_ap2 <- function(z, v, n = 300, h2 = 0.5, m = 1e6, pi = 0.01) {
+  ncp <- n * v / (1 - h2)
+  sigma_chi <- 2 + 4 * ncp
+  1 / 2 / 3.14159265359 / sqrt(v) / sqrt(sigma_chi * h2 / pi / m) *
+    exp(-v / 2 / h2 * pi * m - (z - 1 - ncp)^2 / 2 / sigma_chi)
+}
+
+f_ap_test <- function(z, v, n = 300, h2 = 0.5, m = 1e6, pi = 0.01) {
+  ncp <- n * v / (1 - h2)
+  sigma_chi <- 2 + 4 * ncp
+  dnorm(z, 1 + ncp, sqrt(2 + 4 * ncp)) / sqrt(v) *
+    dnorm(sqrt(v), 0, sqrt(h2 / pi / m))
+}
+
+fP_ap2 <- function(z, n, h2 = 0.5, m = 1e6, pi = 0.01) {
+  sapply(z, function(z) {
+    integrate(
+      function(v) f_ap2(z, v = v, n = n, h2 = h2, m = m, pi = pi),
+      0, 100, abs.tol = 0)$value
+  })
+}
+
+# same with change of variable
+f_ap3 <- function(z, y, n = 300, h2 = 0.5, m = 1e6, pi = 0.01) {
+  sigma_chi <- 2 + 4 * exp(y)
+  sqrtv <- sqrt((1 - h2) * exp(y) / n)
+  exp(dnorm(z, 1 + exp(y), sqrt(sigma_chi), log = TRUE) +
+        dnorm(sqrtv, 0, sqrt(h2 / m / pi)) + log(sqrtv))
+}
+
+
+
+fP(10, 1e6)
+fP_ap(10, 1e6)
+fP_ap2(10, 1e6)
+
+# per sSNP variance explained
