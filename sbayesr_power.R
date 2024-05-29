@@ -2,30 +2,13 @@
 # 
 # 
 
-Bs <- function(n, h2, gamma) {
-  # eq. 9  
-  lambda <- (1 - h2) / (gamma * h2)
-  
-  # eq. 10
-  C <- n + lambda
-  
-  # eq. 21
-  B <- 0.5 * n * (1 - h2) / C
-  
-  B
-}
-
 z_2_P_R <- function(z, n, h2 = 0.5, gammas, pis) {
   lambda <- (1 - h2) / h2 / gammas
   C <- n + lambda
   A <- pis / pis[1] * sqrt(lambda / C)
   B <- 0.5 * n * (1 - h2) / C
   1 - 1 / (1 + sum(A[-1] * exp(B[-1] * z)))
-  #cat(lambda, '\n')
-  #cat (A, '\n')
-  #cat(B, '\n')
-  #cat(C, '\n')
-  }
+}
 
 P_2_z_R <- function(P, n, h2 = 0.5, gammas, pis) {
   Pmin <- z_2_P_R(0, n, h2, gammas, pis)
@@ -56,6 +39,7 @@ ldchi <- function(x, ncp) {
   }
 }
 
+# vectorized for efficiency
 ldchi <- function(x, ncp) {
   if (length(ncp) > 1) {
     res <- numeric(length(ncp))
@@ -96,6 +80,7 @@ f <- function(z, y, n , h2, gammas, pis) {
   m <- sapply(2:length(gammas), function(i)
     pis[i] * exp(log_f_i(i, z, y, n, h2, gammas, pis))) / sum(pis[-1])
   
+  # special case when only 2 mixtures (SBayesC)
   if (is.null(dim(m)))
      sum(m)
   else
@@ -129,7 +114,7 @@ pow_R <- function(P0, n, h2 = 0.5, gammas, pis) {
 }
 
 #. Monte Carlo integration
-pow_R_mc <- function(P0, n, h2 = 0.5, gammas, pis, N = 10000) {
+pow_R_mc <- function(P0, n, h2 = 0.5, gammas, pis, N = 100000) {
   
   if (length(gammas) == 2) {
     deltas <- 2
@@ -142,14 +127,15 @@ pow_R_mc <- function(P0, n, h2 = 0.5, gammas, pis, N = 10000) {
   ncp <- n * vs / (1 - h2)
   Ps <- sapply(rchisq(N, 1, ncp), z_2_P_R,
                n = n, h2 = h2, gammas = gammas, pis = pis)
-  mean(Ps > P0)
+  power <- mean(Ps > P0)
+  cat("power = ", power, " with standard error se = ", sd(Ps > P0)/sqrt(N))
 }
 
 # check on SBayesC : gamma = c(0, 1/m/pi), pis = c(1-pi, pi)
-pow(0.2, n=30000, h2 = 0.5, m = 1e6, pi=0.001)
+#pow(0.2, n=30000, h2 = 0.5, m = 1e6, pi=0.001)
 pow_R(0.2, n=30000, h2 = 0.5, gammas=c(0, 1/1e6/0.001), pis=c(1-0.001, 0.001))
 pow_R_mc(0.2, n=30000, h2 = 0.5, gammas=c(0, 1/1e6/0.001), pis=c(1-0.001, 0.001))
 
 # check on a 5 components mixture
-pow_R(0.9, n=3000, h2 = 0.5, gammas = c(0, 1e-5, 1e-4, 1e-3, 1e-2), pis =c (0.99, 0.004, 0.003, 0.002, 0.001))
-pow_R_mc(0.2, n=30000, h2 = 0.5, gammas = c(0, 1e-5, 1e-4, 1e-3, 1e-2), pis =c (0.99, 0.004, 0.003, 0.002, 0.001))
+pow_R(0.9, n=30000, h2 = 0.5, gammas = c(0, 1e-5, 1e-4, 1e-3, 1e-2), pis =c (0.99, 0.004, 0.003, 0.002, 0.001))
+pow_R_mc(0.9, n=30000, h2 = 0.5, gammas = c(0, 1e-5, 1e-4, 1e-3, 1e-2), pis =c (0.99, 0.004, 0.003, 0.002, 0.001))

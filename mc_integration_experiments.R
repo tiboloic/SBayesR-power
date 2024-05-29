@@ -117,3 +117,14 @@ rmix <- function(N, pis, sigmas) {
   deltas <- sample(1:length(pis), N, replace=TRUE, prob = pis)
   rnorm(N, 0, sigmas[deltas])
 }
+
+# non central approximtion
+ncp <- 100
+x <- 1
+dnorm(x, 1 + ncp, sqrt(2 + 4 * ncp))
+dchisq(x, 1, ncp)
+
+# product of 2 gaussian pdf
+x <- 1
+dnorm(x, 0, 1) * dnorm(x, 0, 2)
+dnorm()
