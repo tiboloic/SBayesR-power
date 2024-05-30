@@ -56,6 +56,6 @@ pow_mc <- function(P, n, h2, m, pi, N = 1000) {
 pow_mc(0.1, n,h2, m, pi)
 pow(0.1, 0, n = n, h2 = h2, m = m, pi = pi)              
 
-# do not match
+
 
 

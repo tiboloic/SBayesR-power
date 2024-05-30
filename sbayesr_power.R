@@ -82,7 +82,7 @@ f <- function(z, y, n , h2, gammas, pis) {
   
   # special case when only 2 mixtures (SBayesC)
   if (is.null(dim(m)))
-     sum(m)
+    sum(m)
   else
     rowSums(m)
 }
@@ -129,13 +129,55 @@ pow_R_mc <- function(P0, n, h2 = 0.5, gammas, pis, N = 100000) {
                n = n, h2 = h2, gammas = gammas, pis = pis)
   power <- mean(Ps > P0)
   cat("power = ", power, " with standard error se = ", sd(Ps > P0)/sqrt(N))
+  return(power)
 }
+
+# new implementation based on the cdf of the non central chi square
+
+f_R_e <- function(v, z0, n, h2 = 0.5, gammas, pis) {
+  ncp <- n * v / (1 - h2)
+  chi_int <-  pchisq(z0, 1, ncp, lower.tail = FALSE)
+  m <- sapply(2:length(gammas), function(i)
+    pis[i] / sum(pis[-1]) * chi_int *
+      dnorm(sqrt(v), 0, sqrt(gammas[i] * h2)) / sqrt(v))
+  
+  # special case when only 2 mixtures (SBayesC)
+  if (is.null(dim(m)))
+    sum(m)
+  else
+    rowSums(m)
+}
+
+pow_R_e <-  function(P0, n, h2 = 0.5, gammas, pis) {
+  z0 <- P_2_z_R(P0, n, h2, gammas, pis)
+  sds <- sqrt(gammas * h2)
+  v_max <- 10 * max(sds)
+  
+  integrate(f_R_e, lower = 0, upper = v_max,
+            z0 = z0, n = n, h2 = h2, gammas = gammas, pis = pis, abs.tol=0)$value
+}
+
 
 # check on SBayesC : gamma = c(0, 1/m/pi), pis = c(1-pi, pi)
 #pow(0.2, n=30000, h2 = 0.5, m = 1e6, pi=0.001)
 pow_R(0.2, n=30000, h2 = 0.5, gammas=c(0, 1/1e6/0.001), pis=c(1-0.001, 0.001))
 pow_R_mc(0.2, n=30000, h2 = 0.5, gammas=c(0, 1/1e6/0.001), pis=c(1-0.001, 0.001))
+pow_R_e(0.2, n=30000, h2 = 0.5, gammas=c(0, 1/1e6/0.001), pis=c(1-0.001, 0.001))
 
 # check on a 5 components mixture
 pow_R(0.9, n=30000, h2 = 0.5, gammas = c(0, 1e-5, 1e-4, 1e-3, 1e-2), pis =c (0.99, 0.004, 0.003, 0.002, 0.001))
 pow_R_mc(0.9, n=30000, h2 = 0.5, gammas = c(0, 1e-5, 1e-4, 1e-3, 1e-2), pis =c (0.99, 0.004, 0.003, 0.002, 0.001))
+pow_R_e(0.9, n=30000, h2 = 0.5, gammas = c(0, 1e-5, 1e-4, 1e-3, 1e-2), pis =c (0.99, 0.004, 0.003, 0.002, 0.001))
+
+# try for large n
+pow_R(0.9, n=1e6, h2 = 0.5, gammas = c(0, 1e-5, 1e-4, 1e-3, 1e-2), pis =c (0.99, 0.004, 0.003, 0.002, 0.001))
+pow_R_mc(0.9, n=1e6, h2 = 0.5, gammas = c(0, 1e-5, 1e-4, 1e-3, 1e-2), pis =c (0.99, 0.004, 0.003, 0.002, 0.001))
+pow_R_e(0.9, n=1e6, h2 = 0.5, gammas = c(0, 1e-5, 1e-4, 1e-3, 1e-2), pis =c (0.99, 0.004, 0.003, 0.002, 0.001))
+
+# very large n, small h2
+pow_R_mc(0.9, n=1e7, h2 = 0.05, gammas = c(0, 1e-5, 1e-4, 1e-3, 1e-2), pis =c (0.99, 0.004, 0.003, 0.002, 0.001))
+pow_R_e(0.9, n=1e7, h2 = 0.05, gammas = c(0, 1e-5, 1e-4, 1e-3, 1e-2), pis =c (0.99, 0.004, 0.003, 0.002, 0.001))
+
+# very large n, small h2
+pow_R_mc(0.9, n=1e7, h2 = 0.05, gammas = c(0, 1e-5, 1e-4, 1e-3, 1e-2), pis =c (0.9, 0.04, 0.03, 0.02, 0.01))
+pow_R_e(0.9, n=1e7, h2 = 0.05, gammas = c(0, 1e-5, 1e-4, 1e-3, 1e-2), pis =c (0.9, 0.04, 0.03, 0.02, 0.01))

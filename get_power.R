@@ -523,7 +523,9 @@ i_prac <- function(u, t, n, h2, m, pi) {
 }
 # test with normal integration, compare to fP
 integrate(i_prac, 0, 1, t = exp(-100), n=30000, h2 = 0.5, m = 1e6, pi=0.001, abs.tol = 0)
-fP(1, 30000, 0.5, 1e6, 0.001)
+cuhre(i_prac, nComp = 1, 0, 1, t = exp(-100), n=30000, h2 = 0.5, m = 1e6, pi=0.001, absTol = 0)
+
+fP(100, 30000, 0.5, 1e6, 0.001)
 # there is inconsistency between integration methods
 
 ldchi_ap <- function(x, ncp) {
@@ -594,4 +596,57 @@ fP(10, 1e6)
 fP_ap(10, 1e6)
 fP_ap2(10, 1e6)
 
+# Eureka ?
+
+# inner function nc chi square
+h_e <- function(z, l, n = 300, h2 = 0.5, m = 1e6, pi = 0.01)
+{
+#  cat("z: ", z, "l:", l, "\n")
+  exp(ldchi(z, l))
+}
+p_e <- function(y, z0, n, h2, m, pi) {
+  integrate(h_e, lower = z0, upper = 10000, 
+            l = y, n = n, h2 = h2, m = m, pi = pi,
+            abs.tol = 0)$value
+}
+
+q_e <- function(v, z0, n = 3000, h2 = 0.5, m = 1e6, pi = 0.01) {
+  ncp <- n * v / (1 - h2)
+  dnorm(sqrt(v), 0, sqrt(h2/ m / pi)) / sqrt(v) *
+    pchisq(z0, 1, ncp, lower.tail = FALSE)
+}
+
+q_e_2 <- function(v, P0, n = 3000, h2 = 0.5, m = 1e6, pi = 0.01) {
+  exp(lnor(v, sqrt(h2/ m / pi)) +
+    pchisq(P_2_z(P0, n, h2, m, pi), 1, n * v / (1 - h2), lower.tail = FALSE, log.p = TRUE))
+}
+pow_e <- function(P0, n, h2, m, pi) {
+
+  z0 <- P_2_z(P0, n, h2, m, pi)
+  #ncp_max <- 10000
+  #v_max <- ncp_max * (1 - h2) / n
+  #v_max <- min(v_max, 10 * sqrt(h2 / m / pi))
+  # limit integration to 10 standard deviations
+  v_max <- 10 * sqrt(h2 / m / pi)
+  
+  cat("z0: ", z0, "ncp_max: ", ncp_max, "v_max: ", v_max, "\n")
+  integrate(q_e, lower = 0, upper = v_max,
+            z0 = z0,  n = n, h2 = h2, m = m, pi = pi,
+            subdivisions = 10000, abs.tol = 0)$value
+}
+
+pow_e_cub <- function(P0, n, h2, m, pi) {
+  
+  z0 <- P_2_z(P0, n, h2, m, pi)
+  #ncp_max <- 10000
+  #v_max <- ncp_max * (1 - h2) / n
+  #v_max <- min(v_max, 10 * sqrt(h2 / m / pi))
+  # limit integration to 10 standard deviations
+  v_max <- 10 * sqrt(h2 / m / pi)
+  
+  cat("z0: ", z0, "ncp_max: ", "unused", "v_max: ", v_max, "\n")
+  hcubature(q_e, lower = 0, upper = Inf,
+            z0 = z0,  n = n, h2 = h2, m = m, pi = pi,
+            vectorInterface = TRUE, absError = 0)
+}
 # per sSNP variance explained
