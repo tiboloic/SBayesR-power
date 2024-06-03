@@ -36,7 +36,7 @@ ms <- c(7276536.7375, 77483.0705, 2495.0030, 2.6315, 0.0575)
 m_tot <- sum(ms)
 pis <- ms / m_tot
 
-scz_power <- m_tot * sapply(ns, function(n) pow_R_e(0.9, n = n, h2 = h2,
+scz_power <- m_tot * (1 - pis[1]) * sapply(ns, function(n) pow_R_e(0.9, n = n, h2 = h2,
                                               gammas = gammas, pis = pis))
-plot(ht_power ~ ns, log = 'xy', type = "l", col = 2)
+plot(scz_power ~ ns, log = 'xy', type = "l", col = 2)
 
