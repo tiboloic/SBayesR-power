@@ -13,12 +13,17 @@ m_tot <- sum(ms)
 pis <- ms / m_tot
 gammas <- c(0, 1e-5, 1e-4, 1e-3, 1e-2)
 
-ht_power <- m_tot * sapply(ns, function(n) pow_R_e(0.9, n = n, h2 = h2,
+ht_power <- m_tot * (1 - pis[1]) * sapply(ns, function(n) pow_R_e(0.9, n = n, h2 = h2,
                                gammas = gammas, pis = pis))
-ht_power_mc <- m_tot * sapply(ns, function(n) pow_R_mc(0.9, n = n, h2 = h2,
+ht_power_mc <- m_tot * (1 - pis[1]) * sapply(ns, function(n) pow_R_mc(0.9, n = n, h2 = h2,
                                            gammas = gammas, pis = pis))
 plot(ht_power ~ ns, log = 'xy', type = "l", col = 2)
 lines(ht_power_mc ~ ns, col = 3)
+
+# proportion of variance explained
+ht_var_exp <- sapply(ns, function(n) prop_var_R(0.9, n = n, h2 = h2,
+                                                   gammas = gammas, pis = pis))
+plot(ht_var_exp ~ ns, log = 'x', type = "l", col = 2)
 
 # SimLD
 h2 <- 0.5

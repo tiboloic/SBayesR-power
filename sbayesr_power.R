@@ -10,11 +10,20 @@ z_2_P_R <- function(z, n, h2 = 0.5, gammas, pis) {
   1 - 1 / (1 + sum(A[-1] * exp(B[-1] * z)))
 }
 
+get_max_z <- function(P, n, h2 = 0.5, gammas, pis) {
+  lambda <- (1 - h2) / h2 / gammas
+  C <- n + lambda
+  A <- pis / pis[1] * sqrt(lambda / C)
+  B <- 0.5 * n * (1 - h2) / C
+  # based on avoiding averflow exp(z_max * B) = +Inf
+  500 / max(B[-1])
+}
+
 P_2_z_R <- function(P, n, h2 = 0.5, gammas, pis) {
   Pmin <- z_2_P_R(0, n, h2, gammas, pis)
   P <- max(P, Pmin)
   uniroot(function (x, ...) z_2_P_R(x, ...) - P,
-          lower = 0, upper = 1e6,
+          lower = 0, upper = get_max_z(P, n, h2, gammas, pis),
           n = n, h2 = h2, gammas = gammas, pis = pis,
           tol = .Machine$double.eps,
           maxiter = 100000)$root
@@ -24,9 +33,9 @@ P_2_z_R <- function(P, n, h2 = 0.5, gammas, pis) {
 P_2_z_2 <- function(P, n, h2 = 0.5, gammas, pis) {
   Pmin <- z_2_P(0, n, h2, gammas, pis)
   P <- max(P, Pmin)
-  optimize(function (x, ...) (z_2_P(-log(x), ...) - P)^2,
-          lower = 0, upper = 1,
-          n = n, h2 = h2, gammas = gammas, pis = pis)
+  optimize(function (x, ...) (z_2_P_R(x, ...) - P)^2,
+          n = n, h2 = h2, gammas = gammas, pis = pis,
+          lower = 0, upper = 1e3, tol = .Machine$double.eps)
 }
 
 # numerically robust non central chi-square with 1 degree of freedom
@@ -157,6 +166,83 @@ pow_R_e <-  function(P0, n, h2 = 0.5, gammas, pis) {
             z0 = z0, n = n, h2 = h2, gammas = gammas, pis = pis, abs.tol=0)$value
 }
 
+f_prop_var_R <- function(v, z0, n, h2 = 0.5, gammas, pis) {
+  ncp <- n * v / (1 - h2)
+  chi_int <-  pchisq(z0, 1, ncp, lower.tail = FALSE)
+  m <- sapply(2:length(gammas), function(i)
+    pis[i] / sum(pis[-1]) * chi_int *
+      dnorm(sqrt(v), 0, sqrt(gammas[i] * h2)) * sqrt(v))
+  
+  # special case when only 2 mixtures (SBayesC)
+  if (is.null(dim(m)))
+    sum(m)
+  else
+    rowSums(m)
+}
+
+# P(v) to calculate expectation of v
+f_exp_v <- function(v, h2 = 0.5, gammas, pis) {
+  m <- sapply(2:length(gammas), function(i)
+    pis[i] / sum(pis[-1]) * dnorm(sqrt(v), 0, sqrt(gammas[i] * h2)) * sqrt(v))
+  
+  # special case when only 2 mixtures (SBayesC)
+  if (is.null(dim(m)))
+    sum(m)
+  else
+    rowSums(m)
+}
+
+exp_v <- function(h2 = 0.5, gammas, pis) {
+  sds <- sqrt(gammas * h2)
+  v_max <- 10 * max(sds)
+  
+  integrate(f_exp_v, lower = 0, upper = v_max,
+            h2 = h2, gammas = gammas, pis = pis, abs.tol=0)$value
+  
+}
+
+prop_var_R <- function(P0, n, h2 = 0.5, gammas, pis) {
+  z0 <- P_2_z_R(P0, n, h2, gammas, pis)
+  sds <- sqrt(gammas * h2)
+  v_max <- 10 * max(sds)
+  
+  integrate(f_prop_var_R, lower = 0, upper = v_max,
+            z0 = z0, n = n, h2 = h2, gammas = gammas, pis = pis, abs.tol=0)$value /
+    exp_v(h2, gammas, pis)
+}
+
+exp_v_mc <- function(h2 = 0.5, gammas, pis, N = 100000) {
+  
+  if (length(gammas) == 2) {
+    deltas <- 2
+  } else {
+    deltas <- sample(2:length(gammas), N, replace = TRUE, prob = pis[-1])
+  }
+  
+  sds <- sqrt(gammas * h2)
+  vs <- rnorm(N, 0, sds[deltas]) ^ 2
+  Ev <- mean(vs)
+  cat("expectation of v = ", Ev, " with standard error se = ", sd(vs)/sqrt(N), "\n")
+  return(Ev)
+}
+
+prop_var_R_mc <- function(P0, n, h2 = 0.5, gammas, pis, N = 100000) {
+  if (length(gammas) == 2) {
+    deltas <- 2
+  } else {
+    deltas <- sample(2:length(gammas), N, replace = TRUE, prob = pis[-1])
+  }
+  
+  sds <- sqrt(gammas * h2)
+  vs <- rnorm(N, 0, sds[deltas]) ^ 2
+  ncp <- n * vs / (1 - h2)
+  Ps <- sapply(rchisq(N, 1, ncp), z_2_P_R,
+               n = n, h2 = h2, gammas = gammas, pis = pis)
+  prop_v <- mean(mean(Ps > P0) * vs) / mean(vs) 
+  cat("prop. of variance exp. = ", prop_v, " with standard error se = ", sd(prop_v)/sqrt(N), "\n")
+  cat("expectation of v = ", mean(vs), "\n")
+  return(prop_v)
+}
 
 # check on SBayesC : gamma = c(0, 1/m/pi), pis = c(1-pi, pi)
 #pow(0.2, n=30000, h2 = 0.5, m = 1e6, pi=0.001)
@@ -181,3 +267,15 @@ pow_R_e(0.9, n=1e7, h2 = 0.05, gammas = c(0, 1e-5, 1e-4, 1e-3, 1e-2), pis =c (0.
 # very large n, small h2
 pow_R_mc(0.9, n=1e7, h2 = 0.05, gammas = c(0, 1e-5, 1e-4, 1e-3, 1e-2), pis =c (0.9, 0.04, 0.03, 0.02, 0.01))
 pow_R_e(0.9, n=1e7, h2 = 0.05, gammas = c(0, 1e-5, 1e-4, 1e-3, 1e-2), pis =c (0.9, 0.04, 0.03, 0.02, 0.01))
+
+
+# test expectation of v
+exp_v(h2 = 0.5, gammas = c(0, 1e-5, 1e-4, 1e-3, 1e-2), pis =c (0.99, 0.004, 0.003, 0.002, 0.001))
+exp_v_mc(h2 = 0.5, gammas = c(0, 1e-5, 1e-4, 1e-3, 1e-2), pis =c (0.99, 0.004, 0.003, 0.002, 0.001))
+
+exp_v(h2 = 0.3, gammas = c(0, 1e-5, 1e-4, 1e-3, 1e-2), pis =c (0.9, 0.04, 0.03, 0.02, 0.01))
+exp_v_mc(h2 = 0.3, gammas = c(0, 1e-5, 1e-4, 1e-3, 1e-2), pis =c (0.9, 0.04, 0.03, 0.02, 0.01))
+exp_v_mc_2(h2 = 0.3, gammas = c(0, 1e-5, 1e-4, 1e-3, 1e-2), pis =c (0.9, 0.04, 0.03, 0.02, 0.01))
+
+prop_var_R(0.9, 1e6, h2 = 0.5, gammas = c(0, 1e-5, 1e-4, 1e-3, 1e-2), pis =c (0.99, 0.004, 0.003, 0.002, 0.001))
+prop_var_R_mc(0.9, 1e6, h2 = 0.5, gammas = c(0, 1e-5, 1e-4, 1e-3, 1e-2), pis =c (0.99, 0.004, 0.003, 0.002, 0.001))
