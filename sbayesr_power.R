@@ -138,7 +138,7 @@ pow_R_mc <- function(P0, n, h2 = 0.5, gammas, pis, N = 1e6) {
   Ps <- sapply(rchisq(N, 1, ncp), z_2_P_R,
                n = n, h2 = h2, gammas = gammas, pis = pis)
   power <- mean(Ps > P0)
-  cat("power = ", power, " with standard error se = ", sd(Ps > P0)/sqrt(N))
+  cat("power = ", power, " with standard error se = ", sd(Ps > P0)/sqrt(N), "\n")
   return(power)
 }
 
@@ -228,6 +228,9 @@ exp_v_mc <- function(h2 = 0.5, gammas, pis, N = 100000) {
   cat("expectation of v = ", Ev, " with standard error se = ", sd(vs)/sqrt(N), "\n")
   return(Ev)
 }
+
+calc_power <- pow_R_e
+calc_power_mc <- pow_R_mc 
 
 # check on SBayesC : gamma = c(0, 1/m/pi), pis = c(1-pi, pi)
 #pow(0.2, n=30000, h2 = 0.5, m = 1e6, pi=0.001)

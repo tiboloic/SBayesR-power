@@ -3,7 +3,7 @@ Numerical integration for estimating the power of an SBayesR analysis
 
 
 `sbayesr_power.R` contains all the functions to calculate power. The function
-to call to do so is `pow_R_e`
+to call to do so is `calc_power`
 
 
 `Figure7.R` generates figure 7 of the paper
